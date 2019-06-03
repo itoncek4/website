@@ -1,0 +1,75 @@
+{
+  "TV1":{ 
+    "header": "popis TV1",
+    "cols": [
+      {  
+        "header": "popis1",
+        "categories": {
+          "D10L": "q",
+          "H12": "w",
+          "H14": "e",
+          "H16": "r",
+          "H18": "t",
+          "H20": "y"
+        }
+      },
+      {
+        "header": "popis2",
+        "categories": {
+          "H21A": "u",
+          "H21B": "i",
+          "H21C": "o",
+          "H21E": "p"
+        }
+      },
+      {
+        "header": "popis3",
+        "categories": {
+          "H35": "a",
+          "H40": "s",
+          "H45": "d",
+          "H50": "f"
+        }
+      }
+    ]
+  },
+  "TV2":{ 
+    "header": "popis TV2",
+    "cols": [
+      {
+        "header": "popis1",
+        "categories": {
+          "D10": "q",
+          "D12": "w",
+          "D14": "e",
+          "D16": "r",
+          "D18": "t",
+          "D20": "y"
+        }
+      },
+      {
+        "header": "popis2",
+        "categories": {
+          "D21A": "u",
+          "D21B": "i",
+          "D21C": "o",
+          "D21E": "p"
+        }
+      }
+    ]
+  },
+  "TV3":{ 
+    "header": "popis TV2",
+    "cols": [
+    {
+        "header": "popis3",
+        "categories": {
+          "D35": "a",
+          "D40": "s",
+          "D45": "d",
+          "D50": "f"
+        }
+      }
+    ]
+  }  
+}

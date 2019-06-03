@@ -1,0 +1,319 @@
+<!-- 
+Page to show orienteering results from OE2010 on a large screen.
+The page will be auto scrolled class by class showing all the results.
+
+Developped by: Rui Botão - rui@ruibotao.com
+Version: 01.00
+Home Page: https://github.com/botaor/ShowOriRes
+License: MIT License (MIT)
+
+Copyright (c) 2015 Rui Jorge Botão
+
+This project is fork of https://github.com/botaor/ShowOriRes
+Modified by: Martin Vana
+Home Page: https://github.com/martinvanax/ShowOriRes
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="robots" content="none,notranslate"/>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Show results</title>
+	<style>
+        html { height: 100%; margin: 0px; padding: 0px; }
+        /* CUSTOMIZE HERE */
+        body { height: 100%; margin: 0px 20px; padding: 0px; }
+		.frameHeader { width:100%; height:30px; float:left; text-align: center; font: 25px Arial; padding-top: 15px; background-color: #020181; color:#fff; }
+		.classHeader { width:100%; height:25px; float:left; text-align: left; font: 20px Arial; background-color: #ebffeb }
+		.info { width:100%; height: 90%; float:left }
+        .noScrolling { overflow: hidden; width: 100%; display:block; height:100%; border: none }
+        #top {background-color:#020181;height:50px;font: 40px Arial;text-align:center;color:#fff;}
+	</style>
+</head>
+<body>
+<div id="top">
+
+<b>OriResults modified by Maaca</b>
+
+</div>
+    <script src="Scripts/jquery-2.1.4.min.js"></script>
+    <script>
+        // CUSTOMIZE HERE
+        var scrollBaseTime = 1 * 1000;
+        var scrollLineTime = 50;
+        var stopTime = 5 * 1000;
+
+        /* For debug put the scrolling faster
+        scrollBaseTime = 1 * 1000;
+        scrollLineTime = 50;
+        stopTime = 1 * 500;
+        */
+        var showCategory = new Array();
+        var frameTimer = new Array();
+        var configFile = null;
+        var urlTV = null;
+        var resFile = null;
+        var catList = new Array();
+        var colList = new Array();
+        
+        function ColumnList(col, header, showCategory, timer)
+        {
+          this.col = col;
+          this.header = header;
+          this.showCategory = showCategory;
+          this.timer = timer;
+        }
+        
+        function CategoryList(col, cat, key)
+        {
+          this.col = col;
+          this.cat = cat;
+          this.key = key;
+        }
+                
+        function StopPoint( cat, category, position, delayWait, delayScroll ) {
+            this.cat = cat;
+            this.category = category;
+            this.position = position;
+            this.delayWait = delayWait;
+            this.delayScroll = delayScroll;
+            this.display = function() {
+                return position.toString() + ", " + delayWait.toString() + ", " + delayScroll.toString() ;
+            }
+        }
+        
+        function MyAnimate( hdr, obj, txt, arr, index, frmInd ) {
+            if( index >= arr.length )
+            {
+                // provoque refresh
+                obj.attr('src', obj.attr('src') );
+                return ;
+            }
+
+            $('html, body', txt).eq(0).animate({
+                scrollTop: arr[index].position
+            }, arr[index].delayScroll, function() {
+                hdr.text( arr[index].category );
+                frameTimer[frmInd] = setTimeout( MyAnimate, arr[index].delayWait, hdr, obj, txt, arr, index+1, frmInd );
+            });
+            //https://www.w3schools.com/jsref/met_win_cleartimeout.asp
+        }
+                
+        function prepareIFrame( hdr, obj, url, frmInd ) {
+            obj.on( 'load', function() {
+                var txt = obj.contents(); 
+                var cat = "";
+                // Add link to the end, so that we can scroll to it
+                $('#navigation', txt).before( '<a id="LAST"></a>' );
+
+                // Erase extra elements
+                $('#navigation', txt).remove();
+                $('#reporttop', txt).remove();                  
+                
+                // remove categories that are not in the list for this column
+                $('a', txt).each(function(i){
+                  cat = $(this).attr("id");
+                  if(cat != "LAST")
+                  {
+                    if(!isInCol(cat, frmInd)) {
+                      $(this).next( 'table' ).remove();
+                      $(this).next( 'table' ).remove();
+                      $(this).next( 'table' ).remove(); 
+                      $(this).remove();                                          
+                    }
+                  } 
+                });  
+                                
+                // CUSTOMIZE HERE
+                // Change font size
+                $('td', txt).css( 'font', '16pt/1.2 Arial')
+                $('th', txt).css( 'font', '16pt/1.2 Arial')
+                
+                // Cache scroll positions for each class
+                var scrollPositions = new Array();
+                var wndSize = $('#frm' + frmInd).height();
+                var rowHeight = $('td', txt).height() ;
+                var maxRows = Math.floor( wndSize / rowHeight ) ; 
+                var showRows = maxRows - 2 ; 
+                var lastPos = 0 ;
+                var lastRows = 0 ;
+                var n = 0 ;
+                var pos ;
+                var category = "";
+                cat = "";
+                $('a', txt).each(function(i){
+                    console.log("is in frm: " + i);
+                    if( lastRows > maxRows )
+                    {
+                        pos = lastPos ;
+                        rowsLeft = lastRows ;
+                        while( rowsLeft > showRows * 2 ) {
+                            pos += showRows * rowHeight ;
+                            scrollPositions[n++] = new StopPoint(cat, category, pos, stopTime, scrollBaseTime + showRows * scrollLineTime ) ;
+                            rowsLeft -= showRows ;
+                        }
+
+                        pos = $(this).offset().top ;
+                        scrollPositions[n++] = new StopPoint( cat, category, pos - maxRows * rowHeight, stopTime, scrollBaseTime + (rowsLeft - maxRows) * scrollLineTime ) ;
+                        cat = $(this).attr("id");
+                        category = $(this).next( 'table' ).find( 'nobr' ).text() ;
+                        scrollPositions[n++] = new StopPoint( cat, category, pos, stopTime, scrollBaseTime + maxRows * scrollLineTime ) ;
+                    }
+                    else
+                    {
+                        cat = $(this).attr("id");
+                        category = $(this).next( 'table' ).find( 'nobr' ).text() ;
+                        scrollPositions[n++] = new StopPoint( cat, category, $(this).offset().top, stopTime, scrollBaseTime + lastRows * scrollLineTime ) ;
+                    }
+                        
+                    lastPos = $(this).offset().top ;
+                    lastRows = $(this).next( 'table' ).next( 'table' ).next( 'table' ).find('tr').length + 2;   //+2 for the header
+                });
+                // if priority show category
+                
+                var firstShow;
+                if(showCategory[frmInd]){
+                  let showCat = scrollPositions.find(sp => sp.cat === showCategory[frmInd]);
+                  firstShow = scrollPositions.indexOf(showCat);   
+                  showCategory[frmInd] = "";
+                }
+                else
+                {
+                  firstShow = 0;
+                }
+                
+                // change index 0 because we want to get to the first one rigth away
+                scrollPositions[firstShow].delayScroll = 0 ;
+
+                // start scrolling
+                MyAnimate( hdr, obj, txt, scrollPositions, firstShow, frmInd );
+            }) ;
+
+            // load frame
+            obj.attr('src',url);
+        }
+        
+        function isInCol(cat, ind) {
+          var f = catList.filter(function(c) {
+            return ((c.cat == cat) && (c.col == ind));
+          });
+          return f.length;  
+        }
+        
+        function GetURLParameter(sParam) {
+          var sPageURL = window.location.search.substring(1);
+          var sURLVariables = sPageURL.split('&');
+          for (var i = 0; i < sURLVariables.length; i++) {
+            var sParameterName = sURLVariables[i].split('=');
+            if (sParameterName[0] == sParam) {
+              return sParameterName[1];
+            }
+          }
+        }
+        
+        function readConfig(configFile) {
+          $.getJSON(configFile + ".json")
+            .done(function(data) {
+              applyConfig(data);
+            })
+            .fail(function( jqxhr, textStatus, error ) {
+              $("#top").text('Could not load config.json file!!! Specify it as c parameter if name is different from config ...html?c=myconfig'); 
+              var err = textStatus + ", " + error;
+              console.log( "Request Failed: " + err );
+            });
+        }
+        
+        function applyConfig(data) {
+        configFile = data;
+          if(configFile != null) {
+            $.each( configFile, function(tv, item ) {
+              if(urlTV == tv) {
+                var colWidth = 100;
+                $.each(item.cols, function(i, el){
+                  colList.push(new ColumnList(i, el.header, "", null));
+                  readCategories(i, el.categories);
+                }); 
+                $("#top").text(item.header);
+                setCols();
+                colWidth = (colWidth / item.cols.length) + "%";
+                $('.frameHeader').css("width", colWidth);
+                $('.classHeader').css("width", colWidth);
+		            $('.info').css("width", colWidth);
+              }
+            });
+          }
+        }
+        
+        function setCols() {
+          colList.reverse();
+          $.each(colList, function(i, col){
+            $("#top").after("<div id=col_" + col.col + " class=\"info\"><iframe scrolling=\"no\" class=\"noScrolling\" id=frm" + col.col + " src=\"\"></iframe></div>");
+          });
+          $.each(colList, function(i, col){
+            $("#top").after("<div id=\"hdr" + col.col +" class=\"classHeader\"></div>");
+          });
+          $.each(colList, function(i, col){
+            $("#top").after("<div class=\"frameHeader\">" + col.header + "</div>");
+          });
+          colList.reverse(); 
+          $.each(colList, function(i, col){
+            prepareIFrame( $('#hdr' + col.col), $('#frm' + col.col), resFile, col.col);  
+          });               
+        }        
+        
+        function readCategories(col, categories) {
+          $.each(categories, function(cat, key) {
+            catList.push(new CategoryList(col, cat, key));
+          });        
+        }
+        
+        $(function () {
+            var c = GetURLParameter("c");
+            if (c == null) {
+              c = "config";
+            }
+            urlTV = GetURLParameter("tv");
+            if (urlTV == null) {
+              urlTV = "TV1";
+            }
+            resFile = GetURLParameter("r");
+            if (resFile == null) {
+              resFile = "res.html";
+            }
+            readConfig(c);
+        });
+            
+        
+        $(document).keypress(function(event) {
+            // TODO fast showCategory
+            //alert('Handler for .keypress() called. - ' + event.charCode);
+            //clearTimeout(frameTimer[0]);
+            //showCategory[0] = "D14";
+            //$( '#leftFRM' ).attr( 'src', 'res1.html');
+            //$( '#leftFRM' ).attr( 'src', function ( i, val ) { return val; });
+            //document.getElementById('centerFRM').contentDocument.location.reload(true);
+        });
+    </script>
+</body>
+</html>
